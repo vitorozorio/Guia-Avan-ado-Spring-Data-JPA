@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Guia Completo: Spring Data JPA</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #121212;
+      color: #f1f1f1;
+      padding: 30px;
+    }
+
+    a {
+      color: #4da3ff;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    header h1 {
+      font-size: 3em;
+      color: #4da3ff;
+    }
+
+    section {
+      margin-bottom: 50px;
+    }
+
+    h2 {
+      color: #4da3ff;
+      margin-bottom: 20px;
+    }
+
+    pre {
+      background-color: #1e1e1e;
+      padding: 20px;
+      overflow-x: auto;
+      border-radius: 8px;
+      margin-top: 10px;
+      margin-bottom: 20px;
+    }
+
+    code {
+      color: #00ffcc;
+    }
+
+    p {
+      margin-bottom: 15px;
+      line-height: 1.6;
+    }
+
+    ul {
+      margin-left: 20px;
+      margin-bottom: 20px;
+    }
+
+    li {
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Guia Completo: Spring Data JPA</h1>
+    </header>
+
+    <section>
+      <h2>1. Repositories no Spring Data JPA</h2>
+      <p>O Spring Data JPA facilita a implementação do repositório para persistência de dados ao estender a interface <code>JpaRepository</code>.</p>
+      <p>Principais métodos do <code>JpaRepository</code>:</p>
+      <ul>
+        <li><code>save()</code> - Salva ou atualiza uma entidade.</li>
+        <li><code>findById()</code> - Busca por ID.</li>
+        <li><code>findAll()</code> - Lista todos os registros.</li>
+        <li><code>deleteById()</code> - Remove por ID.</li>
+      </ul>
+
+      <h3>Exemplo:</h3>
+      <pre><code>public interface UsuarioRepository extends JpaRepository&lt;Usuario, Long&gt; {
+    List&lt;Usuario&gt; findByNomeContaining(String nome);
+    Optional&lt;Usuario&gt; findByEmail(String email);
+}</code></pre>
+
+      <p><strong>Explicação:</strong></p>
+      <ul>
+        <li><code>findByNomeContaining</code>: consulta personalizada usando palavras-chave do Spring Data.</li>
+        <li><code>findByEmail</code>: consulta que retorna um Optional.</li>
+      </ul>
+
+      <p><strong>Boas práticas:</strong></p>
+      <ul>
+        <li>Evite consultas muito complexas nas interfaces, prefira <code>@Query</code> ou Specifications.</li>
+        <li>Use <code>Pageable</code> e <code>Sort</code> para paginação e ordenação.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>2. Services: Regras de Negócio</h2>
+      <p>A camada de serviço encapsula as regras de negócio e faz uso dos repositórios.</p>
+
+      <h3>Exemplo:</h3>
+      <pre><code>@Service
+public class UsuarioService {
+
+    private final UsuarioRepository usuarioRepository;
+
+    public UsuarioService(UsuarioRepository usuarioRepository) {
+        this.usuarioRepository = usuarioRepository;
+    }
+
+    public Usuario salvar(Usuario usuario) {
+        return usuarioRepository.save(usuario);
+    }
+
+    public List&lt;Usuario&gt; listarTodos() {
+        return usuarioRepository.findAll();
+    }
+
+    public Optional&lt;Usuario&gt; buscarPorId(Long id) {
+        return usuarioRepository.findById(id);
+    }
+
+    public void deletar(Long id) {
+        usuarioRepository.deleteById(id);
+    }
+}</code></pre>
+
+      <p><strong>Injeção de Dependências:</strong> feita via construtor (recomendado com <code>@Autowired</code> opcional).</p>
+      <p><strong>Boas práticas:</strong></p>
+      <ul>
+        <li>Centralize a lógica da aplicação aqui, e não no Controller.</li>
+        <li>Valide entidades antes de salvar.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>3. Controllers: Entrada de Requisições</h2>
+      <p>Responsáveis por expor endpoints HTTP e repassar chamadas à camada de serviço.</p>
+
+      <h3>Exemplo:</h3>
+      <pre><code>@RestController
+@RequestMapping("/usuarios")
+public class UsuarioController {
+
+    private final UsuarioService usuarioService;
+
+    public UsuarioController(UsuarioService usuarioService) {
+        this.usuarioService = usuarioService;
+    }
+
+    @GetMapping
+    public List&lt;Usuario&gt; listarTodos() {
+        return usuarioService.listarTodos();
+    }
+
+    @PostMapping
+    public ResponseEntity&lt;Usuario&gt; criar(@RequestBody Usuario usuario) {
+        Usuario salvo = usuarioService.salvar(usuario);
+        return new ResponseEntity&lt;&gt;(salvo, HttpStatus.CREATED);
+    }
+}</code></pre>
+
+      <p><strong>Boas práticas:</strong></p>
+      <ul>
+        <li>Não implemente regras de negócio nos Controllers.</li>
+        <li>Use DTOs para entrada e saída de dados.</li>
+        <li>Use <code>@Valid</code> para validação.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>4. Extras: Consultas Avançadas com @Query</h2>
+      <pre><code>@Query("SELECT u FROM Usuario u WHERE u.ativo = true")
+List&lt;Usuario&gt; buscarUsuariosAtivos();</code></pre>
+
+      <p>Use JPQL ou SQL nativo com <code>nativeQuery = true</code>.</p>
+
+      <h3>Paginação e Ordenação</h3>
+      <pre><code>Page&lt;Usuario&gt; findAll(Pageable pageable);
+List&lt;Usuario&gt; findAll(Sort sort);</code></pre>
+
+      <p>Exemplo com Pageable:</p>
+      <pre><code>Pageable pageable = PageRequest.of(0, 10, Sort.by("nome"));
+Page&lt;Usuario&gt; page = usuarioRepository.findAll(pageable);</code></pre>
+    </section>
+
+    <footer style="text-align:center; margin-top:50px; font-size:0.9em; color:#888;">
+      Desenvolvido com 💙 para estudo de Spring Data JPA
+    </footer>
+  </div>
+</body>
+</html>
